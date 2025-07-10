@@ -1,0 +1,46 @@
+#include <Wire.h>
+#include <PN532_I2C.h>
+#include <PN532.h>
+#include <NfcAdapter.h>
+
+// Para usar I2C con PN532
+PN532_I2C pn532i2c(Wire);
+PN532 nfc(pn532i2c);
+
+void setup(void) {
+  Serial.begin(115200);
+  Serial.println("Iniciando lector PN532...");
+  nfc.begin();
+
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  if (!versiondata) {
+    Serial.println("No se encontró el lector PN532");
+    while (1); // queda detenido aquí
+  }
+
+  // Configura el lector para leer tarjetas
+  nfc.SAMConfig();
+  Serial.println("Lector PN532 listo para leer tarjetas NFC");
+}
+
+void loop(void) {
+  Serial.println("Acerca una tarjeta NFC al lector...");
+
+  boolean success;
+  uint8_t uid[7];    // Tamaño máximo UID 7 bytes
+  uint8_t uidLength;
+
+  // Espera a que una tarjeta sea detectada
+  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+
+  if (success) {
+    Serial.print("UID detectado: ");
+    for (uint8_t i = 0; i < uidLength; i++) {
+      Serial.print(uid[i], HEX);
+      if (i != uidLength - 1)
+        Serial.print(" ");
+    }
+    Serial.println();
+    delay(2000); // Espera 2 segundos antes de siguiente lectura
+  }
+}
