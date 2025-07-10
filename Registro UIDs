@@ -1,46 +1,49 @@
 #include <Wire.h>
-#include <PN532_I2C.h>
-#include <PN532.h>
-#include <NfcAdapter.h>
+#include <Adafruit_PN532.h>
 
-// Para usar I2C con PN532
-PN532_I2C pn532i2c(Wire);
-PN532 nfc(pn532i2c);
+// Pines de I2C del ESP32 (ajústalos si necesitas)
+#define SDA_PIN 21
+#define SCL_PIN 22
+
+// Pines del lector NFC (NO SON físicos, son virtuales en I2C)
+#define PN532_IRQ   (2)
+#define PN532_RESET (3)
+
+TwoWire myWire = TwoWire(0);  // Canal I2C 0
+
+Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET, &myWire);  // Constructor correcto para I2C
 
 void setup(void) {
   Serial.begin(115200);
   Serial.println("Iniciando lector PN532...");
+
+  myWire.begin(SDA_PIN, SCL_PIN);  // Inicia el bus I2C en pines específicos
+
   nfc.begin();
 
   uint32_t versiondata = nfc.getFirmwareVersion();
   if (!versiondata) {
     Serial.println("No se encontró el lector PN532");
-    while (1); // queda detenido aquí
+    while (1); // Queda detenido aquí
   }
 
-  // Configura el lector para leer tarjetas
-  nfc.SAMConfig();
+  nfc.SAMConfig();  // Configura el lector
   Serial.println("Lector PN532 listo para leer tarjetas NFC");
 }
 
 void loop(void) {
   Serial.println("Acerca una tarjeta NFC al lector...");
 
-  boolean success;
-  uint8_t uid[7];    // Tamaño máximo UID 7 bytes
+  uint8_t uid[7];  // Máximo tamaño UID
   uint8_t uidLength;
 
-  // Espera a que una tarjeta sea detectada
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-
-  if (success) {
+  if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength)) {
     Serial.print("UID detectado: ");
     for (uint8_t i = 0; i < uidLength; i++) {
       Serial.print(uid[i], HEX);
-      if (i != uidLength - 1)
-        Serial.print(" ");
+      Serial.print(" ");
     }
     Serial.println();
-    delay(2000); // Espera 2 segundos antes de siguiente lectura
+    delay(2000);
   }
 }
